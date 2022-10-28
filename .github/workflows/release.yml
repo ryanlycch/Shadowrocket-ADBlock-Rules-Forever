@@ -1,0 +1,58 @@
+name: Release Shadowrocket Rules
+
+on:
+  schedule:
+    # 每日8时开始
+    - cron:  '0 23 * * *'
+  
+  push:
+    branches:
+      - build
+    paths-ignore: 
+      - '**.md'
+      - 'LICENSE'
+
+  workflow_dispatch:
+  
+jobs:
+  Release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: build
+          path: build
+
+      - uses: actions/checkout@v3
+        with:
+          ref: master
+          path: master
+
+      - name: Install requirements
+        run: pip3 install -r build/requirements.txt
+
+      - name: Build Rules
+        run: |
+          cd build || exit 1
+          ./factory/auto_build.sh
+      
+      - name: Move files
+        run: |
+          cd build || exit 1
+          cp *.conf ../master/
+          cp -r figure ../master/
+          cp LICENSE ../master/
+          cp readme.md ../master/
+        
+      - name: Remove commits
+        run: |
+          cd master || exit 1
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git checkout --orphan latest_branch
+          git add -A
+          git commit -am "Nightly build"
+          git branch -D master
+          git branch -m master
+          git push -f origin master
+          
